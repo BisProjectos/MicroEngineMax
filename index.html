@@ -15,6 +15,7 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
+    cursor: pointer; /* Shows user they can click */
   }
   #logo {
     opacity: 0; /* Starts hidden */
@@ -24,7 +25,15 @@
     -webkit-user-drag: none;
     pointer-events: none;
   }
-  /* No transition rules = instant appearance (no fade) */
+  /* Appear instantly */
+  #logo.show {
+    opacity: 1;
+  }
+  /* Fade out smoothly over 3 seconds (from 3.2s to 6.2s) */
+  #logo.fade-out {
+    opacity: 0;
+    transition: opacity 3s ease-in-out;
+  }
   
   #error-msg {
     color: #ff4444;
@@ -32,6 +41,7 @@
     margin-top: 20px;
     opacity: 0;
     transition: opacity 0.5s;
+    cursor: default;
   }
 </style>
 </head>
@@ -40,38 +50,99 @@
   <div id="error-msg">Error: engine/menu.html not found!</div>
 
 <script>
-  // 1. Show logo instantly and play sound after 1.2 seconds (1s + 0.2s delay)
-  setTimeout(() => {
-    const logo = document.getElementById('logo');
-    logo.style.opacity = '1'; // Instantly appears, no fade
+  let timeouts = [];
+  let audio;
+  let hasSkipped = false;
 
-    // Play the specific sound file
-    const audio = new Audio('assets/sounds/logo.mp3');
-    audio.volume = 0.8;
-    const p = audio.play();
-    if (p && typeof p.catch === 'function') {
-      p.catch(() => { /* Autoplay may be blocked by browser until user clicks */ });
-    }
-  }, 1200); 
+  // Helper to track timeouts so we can cancel them on skip
+  function scheduleTimeout(fn, ms) {
+    const id = setTimeout(fn, ms);
+    timeouts.push(id);
+    return id;
+  }
 
-  // 2. Check if menu.html exists, then redirect after 3.2 seconds (3s + 0.2s delay)
-  setTimeout(() => {
+  function clearAllTimeouts() {
+    timeouts.forEach(clearTimeout);
+    timeouts = [];
+  }
+
+  function redirectToMenu() {
+    if (hasSkipped) return; // Prevent multiple redirects
+    hasSkipped = true;
+
     fetch('engine/menu.html', { method: 'HEAD' })
       .then(response => {
         if (response.ok) {
-          // File exists, proceed with redirect
           window.location.href = 'engine/menu.html';
         } else {
-          // File returned an error (like 404)
           throw new Error('File not found');
         }
       })
       .catch(error => {
         console.error('Redirect failed:', error);
-        // Show the error message on screen instead of a blank Vercel 404 page
+        // Show error on screen instead of ugly Vercel 404 page
         document.getElementById('error-msg').style.opacity = '1';
+        hasSkipped = false; // Allow trying again if it failed
       });
+  }
+
+  function triggerSkip() {
+    if (hasSkipped) return;
+    
+    clearAllTimeouts();
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    redirectToMenu();
+  }
+
+  // --- 1. Timeline Logic ---
+  
+  // T = 1.2s (1s + 0.2s delay): Show logo instantly and play sound
+  scheduleTimeout(() => {
+    const logo = document.getElementById('logo');
+    logo.classList.add('show');
+
+    audio = new Audio('assets/sounds/logo.mp3');
+    audio.volume = 0.8;
+    const p = audio.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => { /* Autoplay may be blocked by browser */ });
+    }
+  }, 1200); 
+
+  // T = 3.2s (2s after logo appears): Start fading out
+  scheduleTimeout(() => {
+    document.getElementById('logo').classList.add('fade-out');
   }, 3200); 
+
+  // T = 6.2s (5s total time after logo appears): Redirect
+  scheduleTimeout(redirectToMenu, 6200);
+
+
+  // --- 2. Skip Logic ---
+
+  // Skip on double click
+  let clickCount = 0;
+  document.body.addEventListener('click', () => {
+    clickCount++;
+    if (clickCount === 1) {
+      // Reset click count if second click doesn't happen fast enough
+      setTimeout(() => { clickCount = 0; }, 400);
+    } else if (clickCount === 2) {
+      triggerSkip();
+      clickCount = 0;
+    }
+  });
+
+  // Skip on Spacebar
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.key === ' ') {
+      e.preventDefault(); // Prevent page scrolling down
+      triggerSkip();
+    }
+  });
 </script>
 </body>
 </html>
