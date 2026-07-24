@@ -1,1 +1,66 @@
-# MicroEngineMax
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loading</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #logo {
+    opacity: 0;
+    transform: scale(0.92);
+    max-width: 60vmin;
+    max-height: 60vmin;
+    transition: opacity 1.2s cubic-bezier(.2,.7,.2,1),
+                transform 1.2s cubic-bezier(.2,.7,.2,1);
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+    filter: drop-shadow(0 8px 32px rgba(0,0,0,0.6));
+  }
+  #logo.show {
+    opacity: 1;
+    transform: scale(1);
+  }
+</style>
+</head>
+<body>
+  <img id="logo" src="assets/logo.png" alt="Logo">
+
+<script>
+  // Fade in the logo after 1 second and start the sound
+  setTimeout(() => {
+    const logo = document.getElementById('logo');
+    logo.classList.add('show');
+
+    // Play accompanying sound (covers common extensions)
+    const tryFormats = ['assets/sounds.mp3', 'assets/sounds.ogg', 'assets/sounds.wav'];
+    let audio;
+    for (const fmt of tryFormats) {
+      audio = new Audio(fmt);
+      audio.volume = 0.8;
+      // Attempt to play; some browsers block until user gesture
+      const p = audio.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => { /* sound blocked — non-fatal */ });
+      }
+      break;
+    }
+  }, 1000);
+
+  // Redirect to menu after 3 seconds
+  setTimeout(() => {
+    window.location.href = 'engine/menu.html';
+  }, 3000);
+</script>
+</body>
+</html>
