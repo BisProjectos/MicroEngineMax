@@ -17,28 +17,21 @@
     flex-direction: column;
   }
   #logo {
-    opacity: 0;
-    transform: scale(0.92);
+    opacity: 0; /* Starts hidden */
     max-width: 60vmin;
     max-height: 60vmin;
-    transition: opacity 1.2s cubic-bezier(.2,.7,.2,1),
-                transform 1.2s cubic-bezier(.2,.7,.2,1);
     user-select: none;
     -webkit-user-drag: none;
     pointer-events: none;
-    filter: drop-shadow(0 8px 32px rgba(0,0,0,0.6));
   }
-  #logo.show {
-    opacity: 1;
-    transform: scale(1);
-  }
-  /* Error message styling (hidden by default) */
+  /* No transition rules = instant appearance (no fade) */
+  
   #error-msg {
     color: #ff4444;
     font-family: monospace;
     margin-top: 20px;
     opacity: 0;
-    transition: opacity 0.0s;
+    transition: opacity 0.5s;
   }
 </style>
 </head>
@@ -47,26 +40,21 @@
   <div id="error-msg">Error: engine/menu.html not found!</div>
 
 <script>
-  // 1. Fade in the logo and play sound after 1 second
+  // 1. Show logo instantly and play sound after 1.2 seconds (1s + 0.2s delay)
   setTimeout(() => {
     const logo = document.getElementById('logo');
-    logo.classList.add('show');
+    logo.style.opacity = '1'; // Instantly appears, no fade
 
-    // Play accompanying sound
-    const tryFormats = ['assets/logo.mp3', 'assets/sounds.ogg', 'assets/sounds.wav'];
-    let audio;
-    for (const fmt of tryFormats) {
-      audio = new Audio(fmt);
-      audio.volume = 0.8;
-      const p = audio.play();
-      if (p && typeof p.catch === 'function') {
-        p.catch(() => { /* Autoplay blocked or file missing */ });
-      }
-      break;
+    // Play the specific sound file
+    const audio = new Audio('assets/sounds/logo.mp3');
+    audio.volume = 0.8;
+    const p = audio.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => { /* Autoplay may be blocked by browser until user clicks */ });
     }
-  }, 1000);
+  }, 1200); 
 
-  // 2. Check if menu.html exists, then redirect after 3 seconds
+  // 2. Check if menu.html exists, then redirect after 3.2 seconds (3s + 0.2s delay)
   setTimeout(() => {
     fetch('engine/menu.html', { method: 'HEAD' })
       .then(response => {
@@ -83,7 +71,7 @@
         // Show the error message on screen instead of a blank Vercel 404 page
         document.getElementById('error-msg').style.opacity = '1';
       });
-  }, 3000);
+  }, 3200); 
 </script>
 </body>
 </html>
