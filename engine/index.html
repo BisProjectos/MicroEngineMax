@@ -14,6 +14,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
   }
   #logo {
     opacity: 0;
@@ -31,35 +32,57 @@
     opacity: 1;
     transform: scale(1);
   }
+  /* Error message styling (hidden by default) */
+  #error-msg {
+    color: #ff4444;
+    font-family: monospace;
+    margin-top: 20px;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
 </style>
 </head>
 <body>
   <img id="logo" src="assets/logo.png" alt="Logo">
+  <div id="error-msg">Error: engine/menu.html not found!</div>
 
 <script>
-  // Fade in the logo after 1 second and start the sound
+  // 1. Fade in the logo and play sound after 1 second
   setTimeout(() => {
     const logo = document.getElementById('logo');
     logo.classList.add('show');
 
-    // Play accompanying sound (covers common extensions)
+    // Play accompanying sound
     const tryFormats = ['assets/sounds.mp3', 'assets/sounds.ogg', 'assets/sounds.wav'];
     let audio;
     for (const fmt of tryFormats) {
       audio = new Audio(fmt);
       audio.volume = 0.8;
-      // Attempt to play; some browsers block until user gesture
       const p = audio.play();
       if (p && typeof p.catch === 'function') {
-        p.catch(() => { /* sound blocked — non-fatal */ });
+        p.catch(() => { /* Autoplay blocked or file missing */ });
       }
       break;
     }
   }, 1000);
 
-  // Redirect to menu after 3 seconds
+  // 2. Check if menu.html exists, then redirect after 3 seconds
   setTimeout(() => {
-    window.location.href = 'engine/menu.html';
+    fetch('engine/menu.html', { method: 'HEAD' })
+      .then(response => {
+        if (response.ok) {
+          // File exists, proceed with redirect
+          window.location.href = 'engine/menu.html';
+        } else {
+          // File returned an error (like 404)
+          throw new Error('File not found');
+        }
+      })
+      .catch(error => {
+        console.error('Redirect failed:', error);
+        // Show the error message on screen instead of a blank Vercel 404 page
+        document.getElementById('error-msg').style.opacity = '1';
+      });
   }, 3000);
 </script>
 </body>
