@@ -38,7 +38,7 @@
     font-family: monospace;
     margin-top: 20px;
     opacity: 0;
-    transition: opacity 0.5s;
+    transition: opacity 0.0s;
   }
 </style>
 </head>
@@ -53,7 +53,7 @@
     logo.classList.add('show');
 
     // Play accompanying sound
-    const tryFormats = ['assets/sounds.mp3', 'assets/sounds.ogg', 'assets/sounds.wav'];
+    const tryFormats = ['assets/logo.mp3', 'assets/sounds.ogg', 'assets/sounds.wav'];
     let audio;
     for (const fmt of tryFormats) {
       audio = new Audio(fmt);
