@@ -1,1 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebEngine Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  /* Enforce sharp corners and thin text globally */
+  * { 
+    border-radius: 0 !important; 
+    font-weight: 300;
+    box-sizing: border-box;
+  }
+  body { 
+    background: #1a1a1a; 
+    color: #cccccc; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    overflow: hidden;
+    user-select: none;
+  }
+  
+  /* Sharp, simple buttons */
+  .btn {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    transition: background 0.1s;
+  }
+  .btn:hover {
+    background: #383838;
+  }
+  
+  .project-card { 
+    background: #222; 
+    border: 1px solid #333;
+    transition: border-color 0.1s; 
+    cursor: pointer;
+  }
+  .project-card:hover { 
+    border-color: #666;
+  }
+  
+  /* Inputs */
+  .input-field {
+    background: #111;
+    border: 1px solid #333;
+    outline: none;
+  }
+  .input-field:focus {
+    border-color: #666;
+  }
+  
+  /* Custom Context Menu */
+  #context-menu {
+    position: fixed;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    z-index: 1000;
+    min-width: 160px;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+    display: none;
+  }
+  .context-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #ccc;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .context-item:hover {
+    background: #383838;
+    color: #fff;
+  }
+  .context-divider {
+    height: 1px;
+    background: #333;
+    margin: 4px 0;
+  }
 
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #1a1a1a; }
+  ::-webkit-scrollbar-thumb { background: #333; }
+  ::-webkit-scrollbar-thumb:hover { background: #444; }
+</style>
+</head>
+<body class="h-screen flex flex-col">
+
+  <!-- TOP BAR -->
+  <header class="h-14 bg-[#222] border-b border-[#333] flex items-center justify-between px-6 z-10">
+    <div class="flex items-center gap-3">
+      <!-- Logo -->
+      <img src="assets/logo.png" alt="Logo" class="h-8 w-8 object-contain">
+      <span class="text-lg text-[#ddd] tracking-wide">WebEngine Studio</span>
+    </div>
+    <button id="new-project-btn" class="btn px-4 py-2 text-[#ddd] text-sm flex items-center gap-2">
+      <i class="fas fa-plus text-xs"></i> New Project
+    </button>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 overflow-y-auto p-8">
+    
+    <!-- Pinned Section -->
+    <div id="pinned-section" class="mb-10 hidden">
+      <div class="flex items-center gap-4 mb-4">
+        <h2 class="text-xs uppercase tracking-widest text-[#666]">Pinned</h2>
+        <div class="flex-1 h-px bg-[#333]"></div>
+      </div>
+      <div id="pinned-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+    </div>
+
+    <!-- Today Section -->
+    <div id="today-section" class="mb-10 hidden">
+      <div class="flex items-center gap-4 mb-4">
+        <h2 class="text-xs uppercase tracking-widest text-[#666]">Projects Created Today</h2>
+        <div class="flex-1 h-px bg-[#333]"></div>
+      </div>
+      <div id="today-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+    </div>
+
+    <!-- Previous Section -->
+    <div id="previous-section" class="mb-10 hidden">
+      <div class="flex items-center gap-4 mb-4">
+        <h2 class="text-xs uppercase tracking-widest text-[#666]">Previous Projects</h2>
+        <div class="flex-1 h-px bg-[#333]"></div>
+      </div>
+      <div id="previous-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+    </div>
+
+  </main>
+
+  <!-- CUSTOM CONTEXT MENU -->
+  <div id="context-menu">
+    <div class="context-item" data-action="open"><span>Open</span> <i class="fas fa-folder-open text-xs text-[#666]"></i></div>
+    <div class="context-item" data-action="rename"><span>Rename</span> <i class="fas fa-pen text-xs text-[#666]"></i></div>
+    <div class="context-item" data-action="pin"><span id="pin-text">Pin</span> <i class="fas fa-thumbtack text-xs text-[#666]"></i></div>
+    <div class="context-divider"></div>
+    <div class="context-item" data-action="delete"><span>Delete</span> <i class="fas fa-trash text-xs text-[#666]"></i></div>
+  </div>
+
+  <!-- HIDDEN MODAL FOR CREATING/RENAMING -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="bg-[#222] w-96 p-6 border border-[#3a3a3a]">
+      <h3 id="modal-title" class="text-base text-[#ddd] mb-4">Create New Project</h3>
+      <input type="text" id="project-name-input" placeholder="Project name..." class="input-field w-full text-[#ddd] px-3 py-2 text-sm mb-6">
+      <div class="flex justify-end gap-2">
+        <button id="modal-cancel" class="btn px-4 py-2 text-[#aaa] text-sm">Cancel</button>
+        <button id="modal-confirm" class="btn px-4 py-2 text-[#ddd] text-sm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIDDEN DELETE CONFIRMATION MODAL -->
+  <div id="delete-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="bg-[#222] w-96 p-6 border border-[#3a3a3a]">
+      <h3 class="text-base text-[#ddd] mb-2">Delete Project</h3>
+      <p class="text-sm text-[#888] mb-6">Are you sure you want to delete <span id="delete-project-name" class="text-[#ddd]"></span>? This cannot be undone.</p>
+      <div class="flex justify-end gap-2">
+        <button id="delete-cancel" class="btn px-4 py-2 text-[#aaa] text-sm">Cancel</button>
+        <button id="delete-confirm" class="btn bg-[#444] px-4 py-2 text-[#ddd] text-sm hover:bg-[#555]">Delete</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // --- STATE & LOCAL STORAGE ---
+  let projects = JSON.parse(localStorage.getItem('webengine_projects')) || [];
+  let currentAction = 'create';
+  let activeProjectId = null;
+
+  // Helper to check if a date is today
+  function isToday(timestamp) {
+    const date = new Date(timestamp);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  }
+
+  // Generate a unique grey gradient based on project name
+  function generateThumbnail(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const grey1 = 30 + (Math.abs(hash) % 20); // Range: 30-50
+    const grey2 = 15 + (Math.abs(hash >> 3) % 15); // Range: 15-30
+    return `linear-gradient(135deg, #${grey1.toString(16).repeat(2)}, #${grey2.toString(16).repeat(2)})`;
+  }
+
+  // --- DOM ELEMENTS ---
+  const modal = document.getElementById('modal');
+  const deleteModal = document.getElementById('delete-modal');
+  const nameInput = document.getElementById('project-name-input');
+  const modalTitle = document.getElementById('modal-title');
+  const contextMenu = document.getElementById('context-menu');
+
+  // --- RENDER PROJECTS ---
+  function renderProjects() {
+    document.getElementById('pinned-grid').innerHTML = '';
+    document.getElementById('today-grid').innerHTML = '';
+    document.getElementById('previous-grid').innerHTML = '';
+
+    let pinnedCount = 0, todayCount = 0, prevCount = 0;
+
+    // Sort projects by date (newest first)
+    projects.sort((a, b) => b.createdAt - a.createdAt);
+
+    projects.forEach(proj => {
+      const card = createProjectCard(proj);
+      
+      if (proj.pinned) {
+        document.getElementById('pinned-grid').appendChild(card);
+        pinnedCount++;
+      } else if (isToday(proj.createdAt)) {
+        document.getElementById('today-grid').appendChild(card);
+        todayCount++;
+      } else {
+        document.getElementById('previous-grid').appendChild(card);
+        prevCount++;
+      }
+    });
+
+    // Show/hide sections based on content
+    document.getElementById('pinned-section').classList.toggle('hidden', pinnedCount === 0);
+    document.getElementById('today-section').classList.toggle('hidden', todayCount === 0);
+    document.getElementById('previous-section').classList.toggle('hidden', prevCount === 0);
+  }
+
+  function createProjectCard(proj) {
+    const card = document.createElement('div');
+    card.className = 'project-card relative group';
+    card.dataset.id = proj.id;
+    
+    const dateStr = new Date(proj.createdAt).toLocaleDateString();
+    const bgGradient = generateThumbnail(proj.name);
+    
+    card.innerHTML = `
+      <!-- Screenshot Placeholder -->
+      <div class="h-32 flex items-center justify-center border-b border-[#333]" style="background: ${bgGradient};">
+        <span class="text-4xl text-[#444] font-thin">${proj.name.charAt(0).toUpperCase()}</span>
+      </div>
+
+      <!-- Pin Icon if pinned -->
+      ${proj.pinned ? '<div class="absolute top-2 left-2 text-xs text-[#888]"><i class="fas fa-thumbtack"></i></div>' : ''}
+
+      <!-- Project Name -->
+      <div class="p-3">
+        <h3 class="text-sm text-[#ddd] truncate">${proj.name}</h3>
+        <p class="text-xs text-[#666] mt-1">Created: ${dateStr}</p>
+      </div>
+    `;
+    
+    // Clicking the card opens the engine
+    card.addEventListener('click', () => {
+      window.location.href = 'engine/studio.html';
+    });
+
+    // Double-click to rename
+    card.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      openRenameModal(proj.id);
+    });
+
+    // Right-click for Context Menu
+    card.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      activeProjectId = proj.id;
+      
+      // Update Pin text based on state
+      document.getElementById('pin-text').textContent = proj.pinned ? 'Unpin' : 'Pin';
+      
+      // Position menu at mouse
+      contextMenu.style.display = 'block';
+      contextMenu.style.left = `${e.clientX}px`;
+      contextMenu.style.top = `${e.clientY}px`;
+    });
+
+    return card;
+  }
+
+  // --- CONTEXT MENU LOGIC ---
+  document.addEventListener('click', () => {
+    contextMenu.style.display = 'none'; // Hide if clicking elsewhere
+  });
+
+  contextMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const item = e.target.closest('.context-item');
+    if (!item) return;
+
+    const action = item.dataset.action;
+    if (!action || !activeProjectId) return;
+
+    const project = projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+
+    switch(action) {
+      case 'open':
+        window.location.href = 'engine/studio.html';
+        break;
+      case 'rename':
+        openRenameModal(project.id);
+        break;
+      case 'pin':
+        project.pinned = !project.pinned;
+        saveProjects();
+        renderProjects();
+        break;
+      case 'delete':
+        openDeleteModal(project.id);
+        break;
+    }
+    contextMenu.style.display = 'none';
+  });
+
+  // --- SAVE TO LOCAL STORAGE ---
+  function saveProjects() {
+    localStorage.setItem('webengine_projects', JSON.stringify(projects));
+  }
+
+  // --- MODAL LOGIC ---
+  function openCreateModal() {
+    currentAction = 'create';
+    modalTitle.textContent = 'Create New Project';
+    nameInput.value = '';
+    modal.classList.remove('hidden');
+    nameInput.focus();
+  }
+
+  function openRenameModal(id) {
+    currentAction = 'rename';
+    activeProjectId = id;
+    const project = projects.find(p => p.id === id);
+    modalTitle.textContent = 'Rename Project';
+    nameInput.value = project.name;
+    modal.classList.remove('hidden');
+    nameInput.focus();
+    nameInput.select();
+  }
+
+  function openDeleteModal(id) {
+    activeProjectId = id;
+    const project = projects.find(p => p.id === id);
+    document.getElementById('delete-project-name').textContent = project.name;
+    deleteModal.classList.remove('hidden');
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    deleteModal.classList.add('hidden');
+    activeProjectId = null;
+  }
+
+  function confirmAction() {
+    const newName = nameInput.value.trim();
+    if (!newName) return alert("Project name cannot be empty!");
+
+    if (currentAction === 'create') {
+      const newProject = {
+        id: Date.now().toString(),
+        name: newName,
+        createdAt: Date.now(),
+        pinned: false
+      };
+      projects.push(newProject);
+    } else if (currentAction === 'rename') {
+      const project = projects.find(p => p.id === activeProjectId);
+      if (project) project.name = newName;
+    }
+
+    saveProjects();
+    renderProjects();
+    closeModal();
+  }
+
+  function confirmDelete() {
+    projects = projects.filter(p => p.id !== activeProjectId);
+    saveProjects();
+    renderProjects();
+    closeModal();
+  }
+
+  // --- EVENT LISTENERS ---
+  document.getElementById('new-project-btn').addEventListener('click', openCreateModal);
+  document.getElementById('modal-confirm').addEventListener('click', confirmAction);
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('delete-confirm').addEventListener('click', confirmDelete);
+  document.getElementById('delete-cancel').addEventListener('click', closeModal);
+  
+  nameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') confirmAction();
+  });
+
+  // Initial Seed Data if empty
+  if (projects.length === 0) {
+    const now = Date.now();
+    const yesterday = now - (24 * 60 * 60 * 1000);
+    const lastWeek = now - (7 * 24 * 60 * 60 * 1000);
+    projects = [
+      { id: '1', name: 'Space Shooter', createdAt: yesterday, pinned: false },
+      { id: '2', name: '3D Platformer Demo', createdAt: lastWeek, pinned: true },
+      { id: '3', name: 'Test Game', createdAt: now, pinned: false }
+    ];
+    saveProjects();
+  }
+  renderProjects();
+
+</script>
+</body>
+</html>
